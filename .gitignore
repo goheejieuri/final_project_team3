@@ -211,3 +211,6 @@ my-projectcodeit.json
 my-projectcodeit-a5b82b4f4ba0.json
 my-projectcodeit-fd54d11263b8.json
 my-projectcodeit-2939992c5a23.json
+
+# DB파일
+mydb.duckdb
