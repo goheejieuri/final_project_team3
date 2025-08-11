@@ -214,13 +214,6 @@ my-projectcodeit-2939992c5a23.json
 
 # DB파일
 mydb.duckdb
-<<<<<<< HEAD
-mydb.duckdb.wal
-mydb_copy.duckdb
-
-# 개인파일 
-sohee_copy.ipynb
-=======
 
 # 깃허브 보안
 .env
@@ -229,4 +222,8 @@ key/
 .venv/
 mydb.duckdb
 .ipynb_checkpoints/.DS_Store
->>>>>>> 1e08798dae4a7b36a4977ce0bb9f5ceb1c423cd2
+mydb.duckdb.wal
+mydb_copy.duckdb
+
+# 개인파일 
+sohee_copy.ipynb
