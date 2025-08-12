@@ -228,3 +228,5 @@ mydb_copy.duckdb
 
 # 개인파일 
 sohee_copy.ipynb
+
+logs/
