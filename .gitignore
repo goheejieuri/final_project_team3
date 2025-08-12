@@ -214,6 +214,7 @@ my-projectcodeit-2939992c5a23.json
 
 # DB파일
 mydb.duckdb
+final_project.duckdb
 
 # 깃허브 보안
 .env
