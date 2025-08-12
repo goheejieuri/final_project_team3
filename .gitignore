@@ -222,3 +222,8 @@ key/
 .venv/
 mydb.duckdb
 .ipynb_checkpoints/.DS_Store
+mydb.duckdb.wal
+mydb_copy.duckdb
+
+# 개인파일 
+sohee_copy.ipynb
