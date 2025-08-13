@@ -33,7 +33,7 @@ default_args = dict(
 
 with DAG(
     dag_id="1_vote_point_dag",
-    start_date=pendulum.datetime(2025, 6, 1, tz='Asia/Seoul'),
+    start_date=pendulum.datetime(2023, 5, 1, tz='Asia/Seoul'),
     schedule="30 10 * * *", # cron 표현식
     tags = ['20250812'],
     default_args = default_args,
@@ -49,10 +49,8 @@ with DAG(
 
             # DAG 실행일
             ctx = get_current_context()
-            # run_day = ctx["logical_date"].in_timezone("Asia/Seoul").date().isoformat()
-            # next_day = (ctx["logical_date"].in_timezone("Asia/Seoul").date() + pendulum.duration(days=1)).isoformat()
-            run_day = "2023-05-01"  # 테스트용으로 고정된 날짜 사용
-            next_day = "2023-05-02" 
+            run_day = ctx["logical_date"].in_timezone("Asia/Seoul").date().isoformat()
+            next_day = (ctx["logical_date"].in_timezone("Asia/Seoul").date() + pendulum.duration(days=1)).isoformat()
 
             # 추출한 하루치 데이터 DuckDB view (staging_table_name)에 저장
             conn.execute(f"""
