@@ -15,8 +15,8 @@ default_args = dict(
 
 with DAG(
   dag_id='1_user_dag',
-  start_date=pendulum.datetime(2025, 6, 1, tz='Asia/Seoul'),
-  schedule='20 0 * * *',
+  start_date=pendulum.datetime(2023, 3, 29, tz='Asia/Seoul'),
+  schedule='0 1 * * *',
   default_args=default_args,
   catchup=False,
   tags=['20250813'],
