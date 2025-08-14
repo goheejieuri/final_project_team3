@@ -66,7 +66,7 @@ with DAG(
             register_gcs(conn)
             
             vote_point_df = conn.execute(f""" SELECT * FROM {t2} """).df()
-            question_df = conn.execute(f""" SELECT * FROM {t1} """).df().drop_duplicates(subset=["question_text"])
+            question_df = conn.execute(f""" SELECT * FROM {t1} """).df()
             questions = question_df.question_text.unique()
 
             # 질문 데이터 카테고리화
