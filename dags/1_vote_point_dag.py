@@ -1,4 +1,5 @@
 import pendulum
+import os
 from airflow import DAG
 from airflow.decorators import task
 from airflow.sdk import get_current_context
@@ -6,23 +7,13 @@ from duckdb_provider.hooks.duckdb_hook import DuckDBHook
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator
 from google.cloud import bigquery
-import gcsfs
-import os
+from utils import register_gcs
+from airflow_plugins import (
+    DUCKDB_CONN_ID, GCP_CONN_ID, tables_to_combine,
+    BQ_PROJECT, BQ_DATASET
+)
 
-DUCKDB_CONN_ID = "my_local_duckdb_conn"
-GCP_CONN_ID = "gcp_conn"
-tables_to_combine = {
-    "staging_point_history": "gs://sprintda07-gohee-bucket/final_project/최종프로젝트_데이터(parquet)/votes/accounts_pointhistory.parquet",
-    "staging_userquestion_record": "gs://sprintda07-gohee-bucket/final_project/최종프로젝트_데이터(parquet)/votes/accounts_userquestionrecord.parquet"
-}
-BQ_PROJECT = "my-projectcodeit"
-BQ_DATASET = "final_project"
 BQ_TABLE   = "vote_point"
-
-# GCS 파일 시스템 등록
-def register_gcs(conn):
-    fs = gcsfs.GCSFileSystem() 
-    conn.register_filesystem(fs)
 
 default_args = dict(
     owner = 'olozl',
@@ -39,7 +30,7 @@ with DAG(
     default_args = default_args,
     catchup=False
 ):
-    # 1. GCS에서 데이터를 가져와서 하루치 데이터 DuckDB 테이블에 저장
+    # 1. GCS에서 데이터를 가져와서 과거 데이터 DuckDB 테이블에 저장
     @task
     def extract_till_today(uri, staging_table_name, ts_col="created_at"):
         hook = DuckDBHook(duckdb_conn_id=DUCKDB_CONN_ID)
