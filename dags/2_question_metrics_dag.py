@@ -25,7 +25,7 @@ default_args = dict(
 with DAG(
     dag_id="2_question_metrics_dag",
     start_date=pendulum.datetime(2023, 4, 27, tz='Asia/Seoul'),
-    schedule="30 10 * * *", # cron 표현식
+    schedule="30 11 * * *", # cron 표현식
     tags = ['20250813'],
     default_args = default_args,
     catchup=False
