@@ -4,6 +4,7 @@ import json
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from google.cloud import bigquery
+from airflow.sdk import get_current_context
 
 LOCAL_DUCKDB_CONN_ID = "my_local_duckdb_conn"
 
@@ -58,11 +59,23 @@ def process_data():
   # DuckDB 연결 (직접 연결)
   conn = duckdb.connect(DUCKDB_PATH)
   
-  # DuckDB에서 데이터 읽기
-  user_df = conn.execute("SELECT * FROM user_df").fetchdf()
+  # Airflow context에서 실행 날짜 가져오기
+  context = get_current_context()
+  date = context['ds']  # YYYY-MM-DD 형식
+  print(f"Process data - Airflow 실행 날짜: {date}")
+    
+  # DuckDB에서 해당 날짜 데이터만 읽기
+  user_df = conn.execute(f"""
+      SELECT * FROM user_df 
+      WHERE DATE(created_at) = '{date}'
+    """).fetchdf()
+  print(f"user_df 날짜 필터링: {len(user_df)} rows (날짜: {date})")
+    
+  # 나머지 테이블들 (created_at 없음)
   attendance_df = conn.execute("SELECT * FROM attendance_df").fetchdf()
   group_df = conn.execute("SELECT * FROM group_df").fetchdf()
   school_df = conn.execute("SELECT * FROM school_df").fetchdf()
+  print(f"attendance_df: {len(attendance_df)} rows, group_df: {len(group_df)} rows, school_df: {len(school_df)} rows")
   
   # 데이터 처리
   # user_df에 attendance_df merge하기
@@ -112,7 +125,7 @@ def duckDB_to_bq():
   table_id = "my-projectcodeit.final_project.user_df"
   
   job_config = bigquery.LoadJobConfig(
-    write_disposition="WRITE_TRUNCATE",
+    write_disposition="WRITE_APPEND", # 기존 데이터를 유지하고 새 데이터를 추가
     autodetect=True
   )
   
