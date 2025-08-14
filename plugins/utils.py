@@ -53,13 +53,14 @@ def advanced_questions(question_df, category_df, vote_point_df):
         left_on="question_text", right_on="question", how="left"
     )
     base_df["is_skipped"] = base_df["is_skipped"].fillna(0).astype(int)
-    base_df["is_voted"] = base_df["is_voted"].fillna(0).astype(int)
+    base_df["is_voted"]   = base_df["is_voted"].fillna(0).astype(int)
 
     # 노출/스킵/투표 집계
     skip_exposed_df = base_df.groupby(
-        ["question_id", "question_text", "category_nlp"]
+        ["ds", "question_id", "question_text", "category_nlp"],
+        dropna=False
     ).agg(
-        exposed_impressions=("user_id", "size"),    
+        exposed_impressions=("user_id", "size"),
         skipped_users=("is_skipped", "sum"),
         voted_users=("is_voted", "sum"),
     ).reset_index()
@@ -73,7 +74,7 @@ def advanced_questions(question_df, category_df, vote_point_df):
     )
 
     qp_df["delta_points"] = qp_df["delta_points"].apply(
-        lambda x: x if isinstance(x, np.ndarray) else []
+        lambda x: x if isinstance(x, np.ndarray) or isinstance(x, list) else []
     )
 
     def _sum_used(pts):  return sum(p for p in pts if p < 0)
@@ -91,7 +92,8 @@ def advanced_questions(question_df, category_df, vote_point_df):
     qp_df["point_used_avg"]   = qp_df["delta_points"].apply(_avg_used)
 
     agg_votes_points = qp_df.groupby(
-        ["question_id", "question_text", "category_nlp"]
+        ["ds", "question_id", "question_text", "category_nlp"],
+        dropna=False
     ).agg(
         vote_count=("is_voted", "sum"),
         point_used_count=("point_used_count", "sum"),
@@ -104,16 +106,18 @@ def advanced_questions(question_df, category_df, vote_point_df):
     # 메인 집계 결합
     question_metrics_df = agg_votes_points.merge(
         skip_exposed_df,
-        on=["question_id", "question_text", "category_nlp"],
+        on=["ds", "question_id", "question_text", "category_nlp"],
         how="left"
     )
 
-    question_metrics_df["vote_rate"]   = question_metrics_df["voted_users"] / question_metrics_df["exposed_impressions"]
-    question_metrics_df["skip_rate"]   = question_metrics_df["skipped_users"] / question_metrics_df["exposed_impressions"]
-    question_metrics_df["point_used_rate"] = question_metrics_df["point_used_count"] / question_metrics_df["exposed_impressions"]
-    question_metrics_df["avg_votes_per_impression"] = question_metrics_df["voted_users"] / question_metrics_df["exposed_impressions"]
+    denom = question_metrics_df["exposed_impressions"].replace(0, np.nan)
+    question_metrics_df["vote_rate"]            = question_metrics_df["voted_users"] / denom
+    question_metrics_df["skip_rate"]            = question_metrics_df["skipped_users"] / denom
+    question_metrics_df["point_used_rate"]      = question_metrics_df["point_used_count"] / denom
+    question_metrics_df["avg_votes_per_impression"] = question_metrics_df["voted_users"] / denom
 
     cols_keep = [
+        "ds",
         "question_id","question_text","category_nlp","exposed_impressions",
         "voted_users","skipped_users",
         "vote_count",
