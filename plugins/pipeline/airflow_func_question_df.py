@@ -51,15 +51,15 @@ def processing_data():
   # DuckDB 연결 (직접 연결)
   conn = duckdb.connect(DUCKDB_PATH)
   
-  # Airflow context에서 실행 날짜 가져오기
-  context = get_current_context()
-  date = context['ds']  # YYYY-MM-DD 형식
-  print(f"Process data - Airflow 실행 날짜: {date}")
+  # # Airflow context에서 실행 날짜 가져오기
+  # context = get_current_context()
+  # date = context['ds']  # YYYY-MM-DD 형식
+  # print(f"Process data - Airflow 실행 날짜: {date}")
     
-  # DuckDB에서 해당 날짜 데이터만 읽기
-  polls_questionset_df = conn.execute("SELECT * FROM polls_questionset_df WHERE DATE(created_at) = '{date}'").fetchdf()
-  polls_questionpiece_df = conn.execute("SELECT * FROM polls_questionpiece_df WHERE DATE(created_at) = '{date}'").fetchdf()
-  polls_question_df = conn.execute("SELECT * FROM polls_question_df WHERE DATE(created_at) = '{date}'").fetchdf()
+  # DuckDB에서 데이터 불러오기
+  polls_questionset_df = conn.execute("SELECT * FROM polls_questionset_df").fetchdf()
+  polls_questionpiece_df = conn.execute("SELECT * FROM polls_questionpiece_df").fetchdf()
+  polls_question_df = conn.execute("SELECT * FROM polls_question_df").fetchdf()
   print(f"polls_questionset_df: {len(polls_questionset_df)} rows, polls_questionpiece_df: {len(polls_questionpiece_df)} rows, polls_question_df: {len(polls_question_df)} rows")
   
   # polls_questionset_df정규화 대상 copy
