@@ -59,23 +59,24 @@ def process_data():
   # DuckDB 연결 (직접 연결)
   conn = duckdb.connect(DUCKDB_PATH)
   
-  # Airflow context에서 실행 날짜 가져오기
-  context = get_current_context()
-  date = context['ds']  # YYYY-MM-DD 형식
-  print(f"Process data - Airflow 실행 날짜: {date}")
+  # # Airflow context에서 실행 날짜 가져오기
+  # context = get_current_context()
+  # date = context['ds']  # YYYY-MM-DD 형식
+  # print(f"Process data - Airflow 실행 날짜: {date}")
     
-  # DuckDB에서 해당 날짜 데이터만 읽기
-  user_df = conn.execute(f"""
-      SELECT * FROM user_df 
-      WHERE DATE(created_at) = '{date}'
-    """).fetchdf()
-  print(f"user_df 날짜 필터링: {len(user_df)} rows (날짜: {date})")
+  # # DuckDB에서 해당 날짜 데이터만 읽기
+  # user_df = conn.execute(f"""
+  #     SELECT * FROM user_df 
+  #     WHERE DATE(created_at) = '{date}'
+  #   """).fetchdf()
+  # print(f"user_df 날짜 필터링: {len(user_df)} rows (날짜: {date})")
     
   # 나머지 테이블들 (created_at 없음)
+  user_df = conn.execute("SELECT * FROM user_df").fetchdf()
   attendance_df = conn.execute("SELECT * FROM attendance_df").fetchdf()
   group_df = conn.execute("SELECT * FROM group_df").fetchdf()
   school_df = conn.execute("SELECT * FROM school_df").fetchdf()
-  print(f"attendance_df: {len(attendance_df)} rows, group_df: {len(group_df)} rows, school_df: {len(school_df)} rows")
+  print(f"user_df: {len(user_df)} rows, attendance_df: {len(attendance_df)} rows, group_df: {len(group_df)} rows, school_df: {len(school_df)} rows")
   
   # 데이터 처리
   # user_df에 attendance_df merge하기
