@@ -30,9 +30,9 @@ with DAG(
     default_args = default_args,
     catchup=False
 ):  
-    # 1. GCS와 BigQuery에서 데이터를 가져와서 과거 데이터 DuckDB 테이블에 저장
+    # 1. BigQuery에서 데이터를 가져와서 과거 데이터 DuckDB 테이블에 저장
     @task
-    def extract_till_today(staging_table_name, uri, ts_col="created_at", from_bq=False):
+    def extract_till_today(staging_table_name, uri, ts_col="created_at"):
         ddb = DuckDBHook(duckdb_conn_id=DUCKDB_CONN_ID)
         conn = ddb.get_conn()
         try:
@@ -43,40 +43,28 @@ with DAG(
             run_day = run_day_dt.isoformat()
             next_day = (run_day_dt + pendulum.duration(days=1)).isoformat()
 
-            if from_bq:
-                bq_hook = BigQueryHook(gcp_conn_id=GCP_CONN_ID, location="asia-northeast3")
-                client = bq_hook.get_client(project_id=BQ_PROJECT)
+            bq_hook = BigQueryHook(gcp_conn_id=GCP_CONN_ID, location="asia-northeast3")
+            client = bq_hook.get_client(project_id=BQ_PROJECT)
 
-                query = f"""
-                    SELECT *
-                    FROM `{BQ_PROJECT}.{BQ_DATASET}.{uri}`
-                    WHERE {ts_col} < DATETIME '{next_day} 00:00:00'
-                """
-                df = client.query(query).to_dataframe(create_bqstorage_client=True)
+            query = f"""
+                SELECT *
+                FROM `{BQ_PROJECT}.{BQ_DATASET}.{uri}`
+                WHERE DATE({ts_col}) < DATE '{next_day}'
+            """
+            job = client.query(query)
+            arrow_tbl = job.to_arrow()  
+            src = f"__src_{staging_table_name}"
+            conn.register(src, arrow_tbl)
 
-                src = f"__src_{staging_table_name}"
-                conn.register(src, df)
-
-                conn.execute(f"""
-                    CREATE OR REPLACE TABLE {staging_table_name} AS
-                    SELECT
-                        *,
-                        CAST({ts_col} AS TIMESTAMP) AS ts,
-                        DATE(CAST({ts_col} AS TIMESTAMP)) AS ds
-                    FROM {src}
-                    WHERE CAST({ts_col} AS TIMESTAMP) < TIMESTAMP '{next_day} 00:00:00'
-                """)
-            else:
-                conn.execute(f"""
-                    CREATE OR REPLACE TABLE {staging_table_name} AS
-                    SELECT
-                        *,
-                        CAST({ts_col} AS TIMESTAMP) AS ts,
-                        DATE(CAST({ts_col} AS TIMESTAMP)) AS ds
-                    FROM read_parquet('{uri}')
-                    WHERE CAST({ts_col} AS TIMESTAMP) < TIMESTAMP '{next_day} 00:00:00'
-                """)
-
+            conn.execute(f"""
+                CREATE OR REPLACE TABLE {staging_table_name} AS
+                SELECT
+                    *,
+                    CAST({ts_col} AS TIMESTAMP) AS ts,
+                    DATE(CAST({ts_col} AS TIMESTAMP)) AS ds
+                FROM {src}
+                WHERE CAST({ts_col} AS TIMESTAMP) < TIMESTAMP '{next_day} 00:00:00'
+            """)
             return run_day
         finally:
             conn.close()
@@ -100,6 +88,7 @@ with DAG(
 
             # 질문 데이터 확장
             final_df = advanced_questions(question_df, category_df, vote_point_df)
+            print(final_df.describe())
 
             conn.register("final_df", final_df)
             safe_path = out_path.replace("'", "''")
@@ -135,7 +124,7 @@ with DAG(
     table1 = "staging_question"
     table2 = "staging_vote_point"
 
-    t_extract_q = extract_till_today.override(task_id="extract_question")(table1, tables_to_combine[table1], ts_col="created_at_piece", from_bq=True)
+    t_extract_q = extract_till_today.override(task_id="extract_question")(table1, tables_to_combine[table1], ts_col="created_at_piece")
     t_extract_vp = extract_till_today.override(task_id="extract_vote_point")(table2, tables_to_combine[table2])
 
     t_transform = transform_part2(t_extract_vp, table1, table2)
