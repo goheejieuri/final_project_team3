@@ -30,30 +30,56 @@ with DAG(
     default_args = default_args,
     catchup=False
 ):  
-    # 1. GCS에서 데이터를 가져와서 과거 데이터 DuckDB 테이블에 저장
+    # 1. GCS와 BigQuery에서 데이터를 가져와서 과거 데이터 DuckDB 테이블에 저장
     @task
-    def extract_till_today(uri, staging_table_name, ts_col="created_at"):
-        hook = DuckDBHook(duckdb_conn_id=DUCKDB_CONN_ID)
-        conn = hook.get_conn()
+    def extract_till_today(staging_table_name, uri, ts_col="created_at", from_bq=False):
+        ddb = DuckDBHook(duckdb_conn_id=DUCKDB_CONN_ID)
+        conn = ddb.get_conn()
         try:
             register_gcs(conn)
 
-            # # DAG 실행일
             ctx = get_current_context()
-            run_day = ctx["logical_date"].in_timezone("Asia/Seoul").date().isoformat()
-            next_day = (ctx["logical_date"].in_timezone("Asia/Seoul").date() + pendulum.duration(days=1)).isoformat()
-            # 추출한 하루치 데이터 DuckDB view (staging_table_name)에 저장
-            conn.execute(f"""
-                CREATE OR REPLACE VIEW {staging_table_name} AS
-                SELECT
-                    *,
-                    DATE({ts_col}) AS ds
-                FROM read_parquet('{uri}')
-                WHERE {ts_col} < TIMESTAMP '{next_day}'
-            """)
+            run_day_dt = ctx["logical_date"].in_timezone("Asia/Seoul").date()
+            run_day = run_day_dt.isoformat()
+            next_day = (run_day_dt + pendulum.duration(days=1)).isoformat()
+
+            if from_bq:
+                bq_hook = BigQueryHook(gcp_conn_id=GCP_CONN_ID, location="asia-northeast3")
+                client = bq_hook.get_client(project_id=BQ_PROJECT)
+
+                query = f"""
+                    SELECT *
+                    FROM `{BQ_PROJECT}.{BQ_DATASET}.{uri}`
+                    WHERE {ts_col} < DATETIME '{next_day} 00:00:00'
+                """
+                df = client.query(query).to_dataframe(create_bqstorage_client=True)
+
+                src = f"__src_{staging_table_name}"
+                conn.register(src, df)
+
+                conn.execute(f"""
+                    CREATE OR REPLACE TABLE {staging_table_name} AS
+                    SELECT
+                        *,
+                        CAST({ts_col} AS TIMESTAMP) AS ts,
+                        DATE(CAST({ts_col} AS TIMESTAMP)) AS ds
+                    FROM {src}
+                    WHERE CAST({ts_col} AS TIMESTAMP) < TIMESTAMP '{next_day} 00:00:00'
+                """)
+            else:
+                conn.execute(f"""
+                    CREATE OR REPLACE TABLE {staging_table_name} AS
+                    SELECT
+                        *,
+                        CAST({ts_col} AS TIMESTAMP) AS ts,
+                        DATE(CAST({ts_col} AS TIMESTAMP)) AS ds
+                    FROM read_parquet('{uri}')
+                    WHERE CAST({ts_col} AS TIMESTAMP) < TIMESTAMP '{next_day} 00:00:00'
+                """)
+
+            return run_day
         finally:
             conn.close()
-        return run_day
 
     # 2. DuckDB에서 데이터 불러와서 데이터 변환하고 parquet 파일로 저장
     @task
@@ -109,10 +135,10 @@ with DAG(
     table1 = "staging_question"
     table2 = "staging_vote_point"
 
-    t_extract_q = extract_till_today.override(task_id="extract_question")(tables_to_combine[table1], table1, ts_col="created_at_piece")
-    t_extract_vp = extract_till_today.override(task_id="extract_vote_point")(tables_to_combine[table2], table2)
+    t_extract_q = extract_till_today.override(task_id="extract_question")(table1, tables_to_combine[table1], ts_col="created_at_piece", from_bq=True)
+    t_extract_vp = extract_till_today.override(task_id="extract_vote_point")(table2, tables_to_combine[table2])
 
-    t_transform = transform_part2(t_extract_q, table1, table2)
+    t_transform = transform_part2(t_extract_vp, table1, table2)
     t_load = load_to_bigquery(t_transform)
 
     t_extract_q >> t_extract_vp >> t_transform >> t_load
