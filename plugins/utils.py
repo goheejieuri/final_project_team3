@@ -74,7 +74,7 @@ def advanced_questions(question_df, category_df, vote_point_df):
     )
 
     qp_df["delta_points"] = qp_df["delta_points"].apply(
-        lambda x: x if isinstance(x, np.ndarray) or isinstance(x, list) else []
+        lambda x: [v.get('element') for v in x["list"]] if isinstance(x, dict) else []
     )
 
     def _sum_used(pts):  return sum(p for p in pts if p < 0)
