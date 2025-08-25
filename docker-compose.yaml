@@ -69,11 +69,31 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
     # for other purpose (development, test and especially production usage) build/extend Airflow image.
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-duckdb airflow-provider-duckdb fsspec gcsfs google-cloud-bigquery-storage}
+    _PIP_ADDITIONAL_REQUIREMENTS: >-
+      apache-airflow-providers-celery>=3.5,<4
+      redis>=5,<6
+      airflow-provider-duckdb
+      apache-airflow-providers-google>=11,<12
     PIP_NO_CACHE_DIR: "1"
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
     GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
+    AIRFLOW__EMAIL__EMAIL_BACKEND: airflow.utils.email.send_email_smtp
+    AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com
+    AIRFLOW__SMTP__SMTP_STARTTLS: "True"
+    AIRFLOW__SMTP__SMTP_SSL: "False"
+    AIRFLOW__SMTP__SMTP_PORT: "587"
+    AIRFLOW__SMTP__SMTP_USER: ${AIRFLOW__SMTP__SMTP_USER}
+    AIRFLOW__SMTP__SMTP_PASSWORD: ${AIRFLOW__SMTP__SMTP_PASSWORD}
+    AIRFLOW__SMTP__SMTP_MAIL_FROM: ${AIRFLOW__SMTP__SMTP_USER}
+    AIRFLOW__EMAIL__DEFAULT_EMAIL_ON_FAILURE: "False"
+    AIRFLOW__WEBSERVER__SECRET_KEY: "ae2cc02f8bfe7079c3843f2cc79fd6e3d2dc15eb626523e42061ad27569f7542"
+    AIRFLOW__LOGGING__TASK_LOG_READER: task 
+    AIRFLOW__LOGGING__WORKER_LOG_SERVER_HOST: "airflow-worker"
+    AIRFLOW__LOGGING__WORKER_LOG_SERVER_PORT: "8793"
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET}
+    AIRFLOW__API__SECRET_KEY: "ae2cc02f8bfe7079c3843f2cc79fd6e3d2dc15eb626523e42061ad27569f7542"
+    AIRFLOW__API_AUTH__JWT_ALGORITHM: "HS256"
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
@@ -156,9 +176,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
       interval: 30s
-      timeout: 10s
+      timeout: 20s
       retries: 5
-      start_period: 30s
+      start_period: 180s
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
@@ -168,22 +188,39 @@ services:
   airflow-worker:
     <<: *airflow-common
     command: celery worker
+    hostname: airflow-worker
     healthcheck:
       # yamllint disable rule:line-length
       test:
         - "CMD-SHELL"
-        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+        - >
+          celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -t 5 ||
+          celery --app airflow.executors.celery_executor.app inspect ping -t 5
       interval: 30s
-      timeout: 10s
+      timeout: 20s
       retries: 5
-      start_period: 30s
+      start_period: 180s
     environment:
       <<: *airflow-common-env
       PIP_NO_CACHE_DIR: "1"
-      _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-duckdb airflow-provider-duckdb fsspec gcsfs google-cloud-bigquery-storage sentence-transformers pandas numpy scikit-learn}
+      _PIP_ADDITIONAL_REQUIREMENTS: >-
+        apache-airflow-providers-celery>=3.5,<4
+        redis>=5,<6
+        airflow-provider-duckdb
+        apache-airflow-providers-google>=11,<12
+        sentence-transformers pandas numpy scikit-learn playwright
+        fsspec gcsfs google-cloud-bigquery-storage
       # Required to handle warm shutdown of the celery workers properly
       # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    volumes:
+    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+    - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+    - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    - ${AIRFLOW_PROJ_DIR:-.}/key:/opt/airflow/key:ro
+    - playwright-browsers:/ms-playwright
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
@@ -198,9 +235,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
       interval: 30s
-      timeout: 10s
+      timeout: 20s
       retries: 5
-      start_period: 30s
+      start_period: 180s
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
@@ -338,3 +375,4 @@ services:
 
 volumes:
   postgres-db-volume:
+  playwright-browsers: {}
