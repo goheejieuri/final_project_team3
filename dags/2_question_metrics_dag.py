@@ -16,7 +16,7 @@ from airflow_plugins import (
 
 BQ_TABLE   = "final_question"
 REPORT_BASE = "https://lookerstudio.google.com/reporting/65840f2b-fd39-4a07-a47b-e0f97c3d6520"
-MAIL_TO = ["olozl1228@gmail.com"]#, "mseungy13@gmail.com", "sohee1801@gmail.com"]
+MAIL_TO = ["olozl1228@gmail.com", "mseungy13@gmail.com", "sohee1801@gmail.com"]
 
 default_args = dict(
     owner = 'olozl',
