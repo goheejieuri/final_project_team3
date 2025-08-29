@@ -61,7 +61,7 @@
 ## 2. 데이터 운영방식 설계
 
 * **데이터 소스**: 서비스 내부 SQL (학교/학급, 유저, 질문, 투표, 포인트 등)
-* **아키텍처**: GCS → BigQuery (1·2차 가공) → DuckDB + Airflow → Looker 시각화
+* **아키텍처**: GCS → DuckDB → Python (1·2차 가공) →  BigQuery  → Looker 시각화
 * **주요 가공 테이블**:
 
   * `question_df`, `event_info_df`, `user_df`, `vote_point_df`
