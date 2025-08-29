@@ -173,4 +173,4 @@ https://lookerstudio.google.com/s/qVAqSrvn82I
 
 ## 👤 Contributors
 
-* Data Analysis & Strategy: *\[Your Name]*
+* Data Analysis & Strategy: *\[mnsyeon, ol-olozl, goheejieuri]*
