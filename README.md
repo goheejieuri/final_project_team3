@@ -70,6 +70,8 @@
 * **데이터 아키텍쳐 다이어그램**:
 <img width="997" height="493" alt="image" src="https://github.com/user-attachments/assets/afec7d78-b221-4fca-b7c9-16bc56aba821" />
 
+* **Looker Report**:
+https://lookerstudio.google.com/s/qVAqSrvn82I
 ---
 
 ## 3. 문제점
